@@ -67,36 +67,24 @@ class NeuronChecker:
                 if drop:
                     self.cursor.execute('DROP TABLE IF EXISTS {}'.format(t))
                 neurons = list(filter(lambda x: not bool(re.match(re.compile('.*\.(soma|dendrite|axon).*'), x)), neurons))
-                neurons = [(n, 0, "", "", "") for n in neurons]
+                neurons = [(n, 0) for n in neurons]
                 sql = '''CREATE TABLE IF NOT EXISTS {} (
                          id INTEGER PRIMARY KEY AUTOINCREMENT, 
                          name TEXT, 
-                         tested INTEGER, 
-                         faces TEXT, 
-                         face_normals TEXT,
-                         vertices TEXT)'''.format(t)
+                         tested INTEGER)'''.format(t)
                 self.cursor.execute(sql)
                 self.commit_to_db()
-
-                self.cursor.executemany('''INSERT INTO {} (name, tested, faces, face_normals, vertices) 
-                VALUES (?, ?, ?, ?, ?)'''.format(t), neurons)
+                self.cursor.executemany('''INSERT INTO {} (name, tested) VALUES (?, ?)'''.format(t), neurons)
                 print("committing {}".format(t))
                 self.commit_to_db()
                 print('finish')
-        self.close_dahlia()
 
 
-    def update_neuron(self, neuron_class, name, tested, faces='', face_normals='', vertices='', commit=True):
+    def update_neuron(self, neuron_class, name, tested, commit=True):
         try:
-            sql = '''
-            UPDATE {} SET 
-            tested = ?, 
-            faces = ?, 
-            face_normals = ?,
-            vertices = ?
-            WHERE name = ?'''.format(neuron_class)
+            sql = '''UPDATE {} SET tested = ? WHERE name = ?'''.format(neuron_class)
             tested = 1 if tested else 0
-            self.cursor.execute(sql, (tested, faces, face_normals, vertices, name))
+            self.cursor.execute(sql, (tested, name))
             if commit:
                 self.conn.commit()
             return True
@@ -105,7 +93,7 @@ class NeuronChecker:
             return False
 
     def get_neuron(self, neuron_class, name):
-        sql = 'SELECT tested, faces, face_normals, vertices FROM {} WHERE name=?'.format(neuron_class)
+        sql = 'SELECT tested, FROM {} WHERE name=?'.format(neuron_class)
         self.cursor.execute(sql, (name, ))
         row = self.cursor.fetchall()
         if len(row) == 0:
@@ -114,7 +102,7 @@ class NeuronChecker:
             return row[0]
 
     def get_all_neuron(self, neuron_class):
-        sql = 'SELECT name, tested, faces, face_normals, vertices FROM {}'.format(neuron_class)
+        sql = 'SELECT name, tested FROM {}'.format(neuron_class)
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return row
@@ -138,7 +126,7 @@ class NeuronChecker:
         return [r[0] for r in row]
     
     def get_tested_neurons(self, neuron_type):
-        sql = 'SELECT name, tested, faces, face_normals, vertices FROM {} WHERE tested=1'.format(neuron_type)
+        sql = 'SELECT name FROM {} WHERE tested=1'.format(neuron_type)
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return [r[0] for r in row]
@@ -166,4 +154,4 @@ class NeuronChecker:
 
 if __name__ == "__main__":
     nc = NeuronChecker()
-    nc.init_db()
+    nc.init_db(drop=True)

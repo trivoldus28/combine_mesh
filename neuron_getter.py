@@ -92,6 +92,7 @@ class Touch:
             object_id = int(object_id / self.meshHierarchical_size)
         num_level = len(level_dirs) - 1
         level_dirs = [str(lv) for lv in reversed(level_dirs)]
+        # print(os.path.join(str(num_level), *level_dirs))
         return os.path.join(str(num_level), *level_dirs)
 
     def getNeuronSubsegments(self, nid, segment_name):
@@ -127,15 +128,12 @@ class Touch:
                 num_vertices = struct.unpack('<I', memoryview(f.read(4)))[-1]
                 vertices = np.empty((num_vertices, 3))
                 for i in range(num_vertices):
-                    vertices[i, ] = struct.unpack(
-                        '<fff', memoryview(f.read(12)))
+                    vertices[i, ] = struct.unpack('<fff', memoryview(f.read(12)))
                 num_triangles = int((totalSize - (num_vertices*12 + 4))/12)
                 triangles = np.empty((num_triangles, 3))
                 for i in range(num_triangles):
-                    triangles[i, ] = struct.unpack(
-                        '<III', memoryview(f.read(12)))
-            mesh = trimesh.Trimesh(vertices=vertices,
-                                   faces=triangles)
+                    triangles[i, ] = struct.unpack('<III', memoryview(f.read(12)))
+            mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
             # this line @cached(cache=RRCache(maxsize=128*1024*1024))
             # makes Python caches the last 1024*1024 recently used meshes
             # if a mesh is 100KB, then that would be ~100GB of memory
