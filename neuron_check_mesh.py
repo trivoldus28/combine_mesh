@@ -39,9 +39,6 @@ class NeuronChecker:
 
     def init_db(self, drop=False, cell_type=None):
         self.init_dahlia()
-        if drop:
-            self.cursor.execute('DROP TABLE IF EXISTS skeletons')
-        sql = 'CREATE TABLE IF NOT EXISTS skeletons'
         cell_type = ['interneuron',
                  'pc',
                  'grc',

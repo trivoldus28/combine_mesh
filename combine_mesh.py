@@ -12,15 +12,17 @@ NEURON_GETTER = NeuronRetriever()
 NEURON_CHECKER = NeuronChecker()
 WRITE_RATE = 20
 
+BINARY_MESH_PATH = '/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh'
+
 
 def combine_mesh(neuron_class, nid, commit=False):
-    print(f'Combining {nid}')
-    fpth = os.path.join('/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh', neuron_class)
+    # print(f'Combining {nid}')
+    fpth = os.path.join(BINARY_MESH_PATH, neuron_class)
     mesh_list = NEURON_GETTER.retrieve_neuron(nid)
     combined_trimesh = trimesh.util.concatenate(mesh_list)
     b_file = trimesh_to_binary(combined_trimesh)
     os.makedirs(fpth, exist_ok=True)
-    print('Writing to file ...')
+    # print('Writing to file ...')
     with open(os.path.join(fpth, nid), 'wb') as f:
         f.write(b_file)
     NEURON_CHECKER.update_neuron(neuron_class, nid, True, commit=commit)
@@ -32,14 +34,14 @@ def trimesh_to_binary(trimesh_obj):
     num_vertices = len(vertices)
 
     b_array = bytearray(4 + 4 * 3 * len(vertices) + 4 * len(triangles))
-    print(f'to_binary num_vertices: {num_vertices}')
+    # print(f'to_binary num_vertices: {num_vertices}')
     struct.pack_into('<I', b_array, 0, num_vertices)
-    print('Writing vertices ...')
+    # print('Writing vertices ...')
     struct.pack_into('<' + 'f'*len(vertices.flatten()),
                      b_array,
                      4,
                      *vertices.flatten())
-    print('Writing faces ...')
+    # print('Writing faces ...')
     struct.pack_into('<' + 'I'*len(triangles),
                      b_array,
                      4 + 4 * 3 * num_vertices,
@@ -74,6 +76,7 @@ def main():
         exit(1)
 
     neurons_need_merge = NEURON_CHECKER.get_untested_neurons(neuron_class)
+    print(f'{neuron_class} has {len(neurons_need_merge)} unmerged.')
     pbar = tqdm(total=len(neurons_need_merge), desc='MERGING NEURONS')
     for idx, nid in enumerate(neurons_need_merge):
         try:
@@ -93,4 +96,4 @@ def main():
 
 if __name__ == "__main__":
     # main()
-    test1()
+    main()
