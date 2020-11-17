@@ -12,11 +12,11 @@ NEURON_GETTER = NeuronRetriever()
 NEURON_CHECKER = NeuronChecker()
 WRITE_RATE = 20
 
+
 def combine_mesh(neuron_class, nid, commit=False):
     print(f'Combining {nid}')
     fpth = os.path.join('/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh', neuron_class)
-    mesh_dict = NEURON_GETTER.retrieve_neuron(nid, store=False, path=None, soma_loc=False)
-    mesh_list = mesh_dict['meshes']
+    mesh_list = NEURON_GETTER.retrieve_neuron(nid)
     combined_trimesh = trimesh.util.concatenate(mesh_list)
     b_file = trimesh_to_binary(combined_trimesh)
     os.makedirs(fpth, exist_ok=True)
@@ -27,31 +27,39 @@ def combine_mesh(neuron_class, nid, commit=False):
 
 
 def trimesh_to_binary(trimesh_obj):
-    content = trimesh_obj.to_dict()
-    triangles = np.array(content['faces']).flatten()
-    vertices =  np.array(content['vertices']).flatten()
-    num_vertices = len(content['vertices'])
-    b_file = struct.pack('<I', num_vertices)
+    triangles = np.array(trimesh_obj.faces).flatten()
+    vertices =  np.array(trimesh_obj.vertices)
+    num_vertices = len(vertices)
+
+    b_array = bytearray(4 + 4 * 3 * len(vertices) + 4 * len(triangles))
+    print(f'to_binary num_vertices: {num_vertices}')
+    struct.pack_into('<I', b_array, 0, num_vertices)
     print('Writing vertices ...')
-    b_file += struct.pack('<' + 'f'*len(vertices), *vertices)
+    struct.pack_into('<' + 'f'*len(vertices.flatten()),
+                     b_array,
+                     4,
+                     *vertices.flatten())
     print('Writing faces ...')
-    b_file += struct.pack('<' + 'I'*len(triangles), *triangles)
-    # for t in triangles:
-    #     b_file += struct.pack('<I', t)
-    return b_file
+    struct.pack_into('<' + 'I'*len(triangles),
+                     b_array,
+                     4 + 4 * 3 * num_vertices,
+                     *triangles)
+    return b_array
+
+
+#############################################################################
 
 
 def test1():
     nid = 'grc_100'
-    mesh_dict = NEURON_GETTER.retrieve_neuron(nid, store=False, path=None, soma_loc=False)
-    mesh_list = mesh_dict['meshes']
+    mesh_list = NEURON_GETTER.retrieve_neuron(nid)
     combined_trimesh = trimesh.util.concatenate(mesh_list)
 
     bf = trimesh_to_binary(combined_trimesh)
     fpth = '/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh'
     with open(os.path.join(fpth, nid), 'wb') as f:
         f.write(bf)
-    
+
 
 def main():
     neuron_class = 'grc'
@@ -82,6 +90,7 @@ def main():
     pbar.close()
     NEURON_CHECKER.commit_to_db()
 
+
 if __name__ == "__main__":
-    main()
-    # test1()
+    # main()
+    test1()

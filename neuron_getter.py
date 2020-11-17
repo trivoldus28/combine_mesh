@@ -31,12 +31,12 @@ pymongoPath = '/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwayto
 sys.path.insert(0, pymongoPath)
 
 
-class Touch:
+class NeuronRetriever:
 
     def __init__(
             self,
             pymongoPath='/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/',
-            basePath='/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh/',
+            basePath='/n/f810/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed_v2/mesh/',
             db_name='neurondb_cb2_v4',
             db_host='mongodb://10.117.28.250:27018/',
             meshHierarchical_size=10000,
@@ -113,19 +113,19 @@ class Touch:
         return out_segments
 
     @cached(cache=RRCache(maxsize=1024*1024))
-    def getMesh(self, segmentNum):
+    def getMesh(self, segmentNum, raw=False):
         '''opens mesh file from local directory and parses it
         returning a trimesh object.
         Returns `None` if segment does not exist
         '''
         base = self.basePath
         workfile = base + self.getHierarchicalMeshPath(int(segmentNum))
-        # print(workfile); exit()
 
         try:
             totalSize = os.stat(workfile).st_size
             with open(workfile, 'rb') as f:
                 num_vertices = struct.unpack('<I', memoryview(f.read(4)))[-1]
+                # print(f'get mesh num_vertices: {num_vertices}')
                 vertices = np.empty((num_vertices, 3))
                 for i in range(num_vertices):
                     vertices[i, ] = struct.unpack('<fff', memoryview(f.read(12)))
@@ -133,13 +133,17 @@ class Touch:
                 triangles = np.empty((num_triangles, 3))
                 for i in range(num_triangles):
                     triangles[i, ] = struct.unpack('<III', memoryview(f.read(12)))
-            mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
-            # this line @cached(cache=RRCache(maxsize=128*1024*1024))
-            # makes Python caches the last 1024*1024 recently used meshes
-            # if a mesh is 100KB, then that would be ~100GB of memory
-            return mesh
+            if raw:
+                return (vertices, triangles)
+            else:
+                mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
+                # this line @cached(cache=RRCache(maxsize=128*1024*1024))
+                # makes Python caches the last 1024*1024 recently used meshes
+                # if a mesh is 100KB, then that would be ~100GB of memory
+                return mesh
         except:
             return None
+
 
     def getNeuronSegId(self, nid):
         segmentNums = self.neuron_db.get_neuron(nid).to_json()['segments']
@@ -150,96 +154,19 @@ class Touch:
                            soma_segments + axon_segments)
         return all_segments
 
-    def getAllMesh(self, nid):
-        """Return all the segments of a given neuron
-
-        Args:
-            nid (str): the neuron name.
-
-        Returns:
-            : all segments of a neuron in trimesh
-        """
-        all_segments = self.getNeuronSegId(nid)
-        return self.getMeshes(all_segments)
-
-
-    def getMeshes(self, seg_num_list):
-        """Get all the meshes given segment id list
-
-        Args:
-            seg_num_list ([int]): segment id list
-
-        Returns:
-            [Trimesh]: list of the trimesh of segments
-        """
+    def getMeshes(self, seg_num_list, raw=False):
         meshes = []
         iT, iF = 0, 0
         for num in seg_num_list:
-            m = self.getMesh(int(num))
+            m = self.getMesh(int(num), raw=raw)
             if m:
                 iT += 1
                 meshes.append(m)
             else:
                 iF += 1
-                # print('Missing mesh # {} || {} failed of {} ({:.3f}%)'.format(
-                #     int(num), iF, iT, 100 if iT == 0 else 100*iF/iT))
         assert iT
         return meshes
 
-
-class NeuronRetriever:
-
-    def __init__(self):
-        self.t = Touch()
-        self.db = self.t.get_neuron_db()
-
-    def retrieve_soma_loc(self, neuron):
-        loc = self.db.get_neuron(neuron).to_json()
-        try:
-            n_loc = [
-                int(loc['soma_loc']['x']) / 4,
-                int(loc['soma_loc']['y']) / 4,
-                int(loc['soma_loc']['z'])
-            ]
-            return n_loc
-        except:
-            return None
-
-    def retrieve_neuron(self, neuron, store=True, path=None, soma_loc=False):
-        neuron_mesh = self.t.getAllMesh(neuron)
-        n_loc = None
-        if soma_loc:
-            n_loc = self.retrieve_soma_loc(neuron)
-        neuron_dict = {'neuron_name': neuron,
-                       'soma_loc': n_loc}
-        if store:
-            neuron_dict['meshes'] = self.mesh_to_csv(neuron_mesh)
-            self.store_to_path(neuron_dict, neuron, path)
-        
-        neuron_dict['meshes'] = neuron_mesh
-        return neuron_dict
-
-    def store_to_path(self, obj, obj_name, path, format='pickle'):
-        if path is None:
-            print('No path is finded! Will not store to file.')
-        else:
-            if format == 'pickle' or format == 'p':
-                with open(os.path.join(path, obj_name), 'wb') as f:
-                    pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
-            elif format == 'json' or format == 'j':
-                with open(os.path.join(path, obj_name), 'w') as f:
-                    json.dump(obj, f)
-
-    def mesh_to_csv(self, mesh_list):
-        mesh_csv_list = []
-        pbar = tqdm(total=len(mesh_dict), desc='Transfer Mesh to JSON')
-        for mesh in mesh_list():
-            mesh_v_df = pd.DataFrame(mesh.vertices)
-            mesh_f_df = pd.DataFrame(mesh.faces)
-            mesh_csv_list.append({
-                'v': mesh_v_df.to_csv(index=False, header=False),
-                'f': mesh_f_df.to_csv(index=False, header=False)
-            })
-            pbar.update(1)
-        pbar.close()
-        return mesh_csv_list
+    def retrieve_neuron(self, nid, raw=False):
+        all_segments = self.getNeuronSegId(nid)
+        return self.getMeshes(all_segments, raw=raw)
