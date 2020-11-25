@@ -1,4 +1,3 @@
-from cachetools import cached, RRCache
 import pymongo
 # this is the package that does the computations with the meshes; it requires that Rtree be installed (pip install rtree)
 import trimesh
@@ -112,7 +111,6 @@ class NeuronRetriever:
                 break
         return out_segments
 
-    @cached(cache=RRCache(maxsize=1024*1024))
     def getMesh(self, segmentNum, raw=False):
         '''opens mesh file from local directory and parses it
         returning a trimesh object.
@@ -137,9 +135,6 @@ class NeuronRetriever:
                 return (vertices, triangles)
             else:
                 mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
-                # this line @cached(cache=RRCache(maxsize=128*1024*1024))
-                # makes Python caches the last 1024*1024 recently used meshes
-                # if a mesh is 100KB, then that would be ~100GB of memory
                 return mesh
         except:
             return None
