@@ -1,0 +1,18 @@
+{
+    "neuronRetriever" : {
+        "pymongoPath" : "/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/",
+        "basePath" : "/n/f810/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed_v2/mesh/",
+        "db_name" : "neurondb_cb2_v4",
+        "db_host" : "mongodb://10.117.28.250:27018/",
+        "meshHierarchical_size" : 10000,
+        "daisy_block_id_add_one_fix" : "True",
+        "hierarchy_lut_path" : "/n/f810/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment",
+        "super_lut_pre" : "super_1x2x2_hist_quant_50"
+    },
+
+    "combine_neuron": {
+        "mode" : "given_list"
+    }
+    
+
+}

@@ -40,6 +40,8 @@ class NeuronRetriever:
             db_host='mongodb://10.117.28.250:27018/',
             meshHierarchical_size=10000,
             daisy_block_id_add_one_fix=True,
+            hierarchy_lut_path='/n/f810/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment',
+            super_lut_pre='super_1x2x2_hist_quant_50'
     ):
 
         if daisy_block_id_add_one_fix:
@@ -54,6 +56,8 @@ class NeuronRetriever:
 
         self.neuron_db = self.get_neuron_db()
         self.connect_db = self.get_connect_db()
+        self.hierarchy_lut_path = hierarchy_lut_path
+        self.super_lut_pre = super_lut_pre
 
 
     def close_connection(self):
@@ -61,11 +65,9 @@ class NeuronRetriever:
 
 
     def get_connect_db(self):
-        hierarchy_lut_path = '/n/f810/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment'
-        super_lut_pre = 'super_1x2x2_hist_quant_50'
         connect_server = ConnectedSegmentServer(
-            hierarchy_lut_path=hierarchy_lut_path,
-            super_lut_pre=super_lut_pre,
+            hierarchy_lut_path=self.hierarchy_lut_path,
+            super_lut_pre=self.super_lut_pre,
             voxel_size=(40, 8, 8),
             find_segment_block_size=(4000, 4096, 4096),
             super_block_size=(4000, 8192, 8192),
@@ -139,14 +141,15 @@ class NeuronRetriever:
         except:
             return None
 
-
-    def getNeuronSegId(self, nid):
+    def getNeuronSegId(self, nid, with_child=True):
         segmentNums = self.neuron_db.get_neuron(nid).to_json()['segments']
-        dendrite_segments = self.getNeuronSubsegments(nid, 'dendrite')
-        soma_segments = self.getNeuronSubsegments(nid, 'soma')
-        axon_segments = self.getNeuronSubsegments(nid, 'axon')
-        all_segments = set(segmentNums + dendrite_segments +
-                           soma_segments + axon_segments)
+        if with_child:
+            dendrite_segments = self.getNeuronSubsegments(nid, 'dendrite')
+            soma_segments = self.getNeuronSubsegments(nid, 'soma')
+            axon_segments = self.getNeuronSubsegments(nid, 'axon')
+            all_segments = set(segmentNums + dendrite_segments + soma_segments + axon_segments)
+        else:
+            all_segments = set(segmentNums)
         return all_segments
 
     def getMeshes(self, seg_num_list, raw=False):
@@ -162,6 +165,6 @@ class NeuronRetriever:
         assert iT
         return meshes
 
-    def retrieve_neuron(self, nid, raw=False):
-        all_segments = self.getNeuronSegId(nid)
+    def retrieve_neuron(self, nid, with_child=True, raw=False):
+        all_segments = self.getNeuronSegId(nid, with_child=with_child)
         return self.getMeshes(all_segments, raw=raw)
