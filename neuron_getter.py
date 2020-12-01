@@ -5,7 +5,8 @@ import os
 import struct
 import numpy as np
 import sys
-try: 
+
+try:
     from dahlia.db_server import NeuronDBServer
     from dahlia.connected_segment_server import ConnectedSegmentServer
 except ModuleNotFoundError as e:
@@ -49,7 +50,7 @@ class NeuronRetriever:
 
         self.pymongoPath = pymongoPath
         self.basePath = basePath
-        assert(os.path.exists(self.basePath))
+        assert (os.path.exists(self.basePath))
         self.db_name = db_name
         self.db_host = db_host
         self.meshHierarchical_size = meshHierarchical_size
@@ -59,10 +60,8 @@ class NeuronRetriever:
         self.hierarchy_lut_path = hierarchy_lut_path
         self.super_lut_pre = super_lut_pre
 
-
     def close_connection(self):
         self.neuron_db.close()
-
 
     def get_connect_db(self):
         connect_server = ConnectedSegmentServer(
@@ -79,7 +78,7 @@ class NeuronRetriever:
     def get_neuron_db(self):
         try:
             ndb = NeuronDBServer(db_name=self.db_name, host=self.db_host)
-            return ndb 
+            return ndb
         except Exception as e:
             raise ConnectionError('Failed to connect to neuron db server.')
 
@@ -103,7 +102,7 @@ class NeuronRetriever:
         while True:
             try:
                 new_segments = self.neuron_db.get_neuron(
-                    nid+'.'+segment_name+'_'+ str(num)).to_json()['segments']
+                    nid + '.' + segment_name + '_' + str(num)).to_json()['segments']
                 num += 1
                 try:
                     out_segments.extend(new_segments)
@@ -128,11 +127,11 @@ class NeuronRetriever:
                 # print(f'get mesh num_vertices: {num_vertices}')
                 vertices = np.empty((num_vertices, 3))
                 for i in range(num_vertices):
-                    vertices[i, ] = struct.unpack('<fff', memoryview(f.read(12)))
-                num_triangles = int((totalSize - (num_vertices*12 + 4))/12)
+                    vertices[i,] = struct.unpack('<fff', memoryview(f.read(12)))
+                num_triangles = int((totalSize - (num_vertices * 12 + 4)) / 12)
                 triangles = np.empty((num_triangles, 3))
                 for i in range(num_triangles):
-                    triangles[i, ] = struct.unpack('<III', memoryview(f.read(12)))
+                    triangles[i,] = struct.unpack('<III', memoryview(f.read(12)))
             if raw:
                 return (vertices, triangles)
             else:

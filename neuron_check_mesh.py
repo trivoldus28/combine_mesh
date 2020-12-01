@@ -3,7 +3,8 @@ import os
 import pickle
 import re
 import json
-try: 
+
+try:
     from dahlia.db_server import NeuronDBServer
     from dahlia.connected_segment_server import ConnectedSegmentServer
 except ModuleNotFoundError as e:
@@ -15,21 +16,21 @@ except ModuleNotFoundError as e:
 
 
 class NeuronChecker:
-    def __init__(self, 
+    def __init__(self,
                  db_dir='/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db',
-                 dahlia_db_name='neurondb_cb2_v4', 
+                 dahlia_db_name='neurondb_cb2_v4',
                  dahlia_db_host='mongodb://10.117.28.250:27018/'):
         self.conn = sqlite3.connect(db_dir)
         self.cursor = self.conn.cursor()
-        self.dahlia_db_name=dahlia_db_name
-        self.dahlia_db_host=dahlia_db_host
+        self.dahlia_db_name = dahlia_db_name
+        self.dahlia_db_host = dahlia_db_host
         self.dahlia_db = None
 
     def init_dahlia(self):
         if self.dahlia_db is None:
             print(self.dahlia_db_name)
             self.dahlia_db = NeuronDBServer(db_name=self.dahlia_db_name, host=self.dahlia_db_host)
-    
+
     def close_dahlia(self):
         if self.dahlia_db is not None:
             self.dahlia_db.close()
@@ -39,11 +40,11 @@ class NeuronChecker:
 
     def init_db(self, drop=False, cell_type=None):
         self.init_dahlia()
-        cell_type = ['interneuron','pc','grc','glia','stellate','basket','golgi',
-        'lugaro','ubc','globular','cc','myelin','mf','pf','cf']
+        cell_type = ['interneuron', 'pc', 'grc', 'glia', 'stellate', 'basket', 'golgi',
+                     'lugaro', 'ubc', 'globular', 'cc', 'myelin', 'mf', 'pf', 'cf']
         for t in cell_type:
             neurons = self.dahlia_db.find_neuron({"name_prefix": t})
-            
+
             if drop:
                 self.cursor.execute('DROP TABLE IF EXISTS neuron')
             neurons = [(n, 0, None) for n in neurons]
@@ -58,7 +59,6 @@ class NeuronChecker:
             self.cursor.executemany('INSERT INTO neuron (name, tested, segments) VALUES (?, ?, ?)', neurons)
             print("committing {} ...".format(t))
             self.commit_to_db()
-
 
     def update_neuron(self, nid, tested, segments, commit=True):
         try:
@@ -76,7 +76,7 @@ class NeuronChecker:
 
     def get_neuron(self, nid):
         sql = 'SELECT tested, segments, lastupdate, FROM neuron WHERE name=?'
-        self.cursor.execute(sql, (nid, ))
+        self.cursor.execute(sql, (nid,))
         row = self.cursor.fetchall()
         if len(row) == 0:
             return None
@@ -91,7 +91,7 @@ class NeuronChecker:
 
     def check_tested(self, nid):
         sql = 'SELECT tested from neuron WHERE name = ?'
-        self.cursor.execute(sql, (nid, ))
+        self.cursor.execute(sql, (nid,))
         row = self.cursor.fetchall()
         if len(row) == 0:
             return None
@@ -106,7 +106,7 @@ class NeuronChecker:
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return [r[0] for r in row]
-    
+
     def get_tested_neurons(self):
         sql = 'SELECT name FROM neuron WHERE tested=1'
         self.cursor.execute(sql)
@@ -122,12 +122,12 @@ class NeuronChecker:
         self.cursor.execute(query)
         row = self.cursor.fetchall()
         return row
-    
+
     def update_query(self, query, data, commit=True):
         self.cursor.execute(query, data)
         if commit:
             self.commit_to_db()
-    
+
     def update_many_query(self, query, data_list, commit=True):
         self.cursor.executemany(query, data_list)
         if commit:

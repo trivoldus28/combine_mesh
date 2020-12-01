@@ -15,6 +15,5 @@ def copy():
             shutil.copyfile(os.path.join(path, n_class, n), os.path.join(dest_path, n))
 
 
-
 if __name__ == "__main__":
     copy()
