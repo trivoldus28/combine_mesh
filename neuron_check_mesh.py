@@ -8,8 +8,6 @@ try:
     from dahlia.db_server import NeuronDBServer
     from dahlia.connected_segment_server import ConnectedSegmentServer
 except ModuleNotFoundError as e:
-    print(e)
-    print("You need to use sknize environment")
     print("try importing segway.dahalia")
     from segway.dahlia.db_server import NeuronDBServer
     from segway.dahlia.connected_segment_server import ConnectedSegmentServer
@@ -37,32 +35,57 @@ class NeuronChecker:
 
     def get_cursor(self):
         return self.cursor
+    
+    def get_subpart_mongo(self, nlist):
+        self.init_dahlia()
+        subpart_name = []
+        for neuron_name in nlist:
+            children = nc.dahlia_db.get_neuron(neuron_name).children
+            if children is not None and len(children) > 0:
+                for child in children:
+                    subpart_name.append(child)
+        return subpart_name
+
+    def all_neuron_mongo(self):
+        self.init_dahlia()
+        cell_type = ['interneuron', 'pc', 'grc', 'glia', 'stellate', 'basket', 'golgi',
+                     'lugaro', 'ubc', 'globular', 'cc', 'myelin', 'mf', 'pf', 'cf']
+        result = []
+        # get parent
+        for t in cell_type:
+            neurons = self.dahlia_db.find_neuron({"name_prefix": t})
+            result.extend(neurons)
+        # get subparts
+        result.extend(self.get_subpart_mongo(result))
+        return list(set(result))
 
     def init_db(self, drop=False, cell_type=None):
         self.init_dahlia()
         cell_type = ['interneuron', 'pc', 'grc', 'glia', 'stellate', 'basket', 'golgi',
                      'lugaro', 'ubc', 'globular', 'cc', 'myelin', 'mf', 'pf', 'cf']
+        if drop:
+            self.cursor.execute('DROP TABLE IF EXISTS neuron')
+        sql = '''CREATE TABLE IF NOT EXISTS neuron (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                    name TEXT NOT NULL UNIQUE, 
+                    tested INTEGER,
+                    subpart INTEGER,
+                    lastupdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    segments TEXT)'''
+        self.cursor.execute(sql)
+        self.commit_to_db()
         for t in cell_type:
             neurons = self.dahlia_db.find_neuron({"name_prefix": t})
-
-            if drop:
-                self.cursor.execute('DROP TABLE IF EXISTS neuron')
-            neurons = [(n, 0, None) for n in neurons]
-            sql = '''CREATE TABLE IF NOT EXISTS neuron (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        name TEXT NOT NULL, 
-                        tested INTEGER,
-                        lastupdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                        segments TEXT)'''
-            self.cursor.execute(sql)
-            self.commit_to_db()
-            self.cursor.executemany('INSERT INTO neuron (name, tested, segments) VALUES (?, ?, ?)', neurons)
+            print(f'neuron number of {t}: {len(neurons)}')
+            neurons = filter(lambda n: not bool(re.search('axon|soma|dendrite', n)), neurons)
+            neurons = [(n, 0, 0, None) for n in neurons]
+            self.cursor.executemany('INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', neurons)
             print("committing {} ...".format(t))
             self.commit_to_db()
 
     def update_neuron(self, nid, tested, segments, commit=True):
         try:
-            sql = 'UPDATE neuron SET tested = ?, segments = ?, lastupdate=CURRENT_TIMESTAMP WHERE name = ?'
+            sql = f'UPDATE neuron SET tested = ?, segments = ?, lastupdate=CURRENT_TIMESTAMP WHERE name = ?'
             tested = 1 if tested else 0
             if isinstance(segments, list):
                 segments = json.dump(segments)
@@ -75,7 +98,7 @@ class NeuronChecker:
             return False
 
     def get_neuron(self, nid):
-        sql = 'SELECT tested, segments, lastupdate, FROM neuron WHERE name=?'
+        sql = 'SELECT tested, segments, lastupdate FROM neuron WHERE name=?'
         self.cursor.execute(sql, (nid,))
         row = self.cursor.fetchall()
         if len(row) == 0:
@@ -83,8 +106,24 @@ class NeuronChecker:
         else:
             return row[0]
 
-    def get_all_neuron(self):
-        sql = 'SELECT name, tested FROM neuron'
+    def get_all_neuron(self, subpart=None):
+        if subpart is None:
+            sql = 'SELECT name, tested, segments, lastupdate FROM neuron'
+        elif subpart:
+            sql = 'SELECT name, tested, segments, lastupdate FROM neuron WHERE subpart=1'
+        else:
+            sql = 'SELECT name, tested, segments, lastupdate FROM neuron WHERE subpart=0'
+        self.cursor.execute(sql)
+        row = self.cursor.fetchall()
+        return row
+    
+    def get_all_neuron_name(self, subpart=None):
+        if subpart is None:
+            sql = 'SELECT name FROM neuron'
+        elif subpart:
+            sql = 'SELECT name FROM neuron WHERE subpart=1'
+        else:
+            sql = 'SELECT name FROM neuron WHERE subpart=0'
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return row
@@ -101,22 +140,27 @@ class NeuronChecker:
     def commit_to_db(self):
         self.conn.commit()
 
-    def get_untested_neurons(self):
-        sql = 'SELECT name FROM neuron WHERE tested=0'
+    def get_untested_neurons(self, subpart=None):
+        if subpart is None:
+            sql = 'SELECT name FROM neuron WHERE tested=0'
+        elif subpart:
+            sql = 'SELECT name FROM neuron WHERE tested=0 AND subpart=1'
+        else:
+            sql = 'SELECT name FROM neuron WHERE tested=0 AND subpart=0'
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return [r[0] for r in row]
 
-    def get_tested_neurons(self):
-        sql = 'SELECT name FROM neuron WHERE tested=1'
+    def get_tested_neurons(self, subpart=None):
+        if subpart is None:
+            sql = 'SELECT name FROM neuron WHERE tested=1'
+        elif subpart:
+            sql = 'SELECT name FROM neuron WHERE tested=1 AND subpart=1'
+        else:
+            sql = 'SELECT name FROM neuron WHERE tested=1 AND subpart=0'
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return [r[0] for r in row]
-
-    # def get_exisiting_neuron_tables(self):
-    #     self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    #     row = self.cursor.fetchall()
-    #     return [r[0] for r in row if r[0] != 'sqlite_sequence']
 
     def get_query(self, query):
         self.cursor.execute(query)
@@ -133,7 +177,21 @@ class NeuronChecker:
         if commit:
             self.commit_to_db()
 
+def populate_subpart(nc=None):
+    if nc == None:
+        nc = NeuronChecker()
+    nc.init_dahlia()
+    all_neuron_name = nc.get_query("SELECT name FROM neuron WHERE subpart = 0")
+    all_neuron_name = [row[0] for row in all_neuron_name]
+    subpart_name = nc.get_subpart_mongo(all_neuron_name)
+    subpart_neuron = [(n, 0, 1, None) for n in subpart_name]
+    print(f'populating subparts, total #: {len(subpart_neuron)}')
+    nc.cursor.executemany('INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', subpart_neuron)
+    print('committing ...')
+    nc.commit_to_db()
+
 
 if __name__ == "__main__":
     nc = NeuronChecker()
     nc.init_db(drop=True)
+    populate_subpart(nc)

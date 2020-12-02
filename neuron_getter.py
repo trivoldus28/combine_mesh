@@ -10,9 +10,7 @@ try:
     from dahlia.db_server import NeuronDBServer
     from dahlia.connected_segment_server import ConnectedSegmentServer
 except ModuleNotFoundError as e:
-    print(e)
-    print("Using segway.dahlia failed")
-    print("try importing dahalia")
+    print("try importing segway.dahalia")
     from segway.dahlia.db_server import NeuronDBServer
     from segway.dahlia.connected_segment_server import ConnectedSegmentServer
 
@@ -54,11 +52,12 @@ class NeuronRetriever:
         self.db_name = db_name
         self.db_host = db_host
         self.meshHierarchical_size = meshHierarchical_size
+        self.hierarchy_lut_path = hierarchy_lut_path
+        self.super_lut_pre = super_lut_pre
 
         self.neuron_db = self.get_neuron_db()
         self.connect_db = self.get_connect_db()
-        self.hierarchy_lut_path = hierarchy_lut_path
-        self.super_lut_pre = super_lut_pre
+        
 
     def close_connection(self):
         self.neuron_db.close()
@@ -166,4 +165,10 @@ class NeuronRetriever:
 
     def retrieve_neuron(self, nid, with_child=True, raw=False):
         all_segments = self.getNeuronSegId(nid, with_child=with_child)
-        return self.getMeshes(all_segments, raw=raw)
+        return self.getMeshes(all_segments, raw=raw), all_segments
+
+
+if __name__ == "__main__":
+    nr = NeuronRetriever()
+    mesh, seg = nr.retrieve_neuron('grc_100')
+    print(seg)
