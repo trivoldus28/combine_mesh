@@ -117,7 +117,12 @@ class MeshCombiner:
     def combine_mesh(self, nid, update=True, commit=False):
         logging.info(f'Combining {nid}...')
         with_child = self.is_subpart(nid)
-        mesh_list, seg_set = self.neuron_getter.retrieve_neuron(nid, with_child=with_child)
+        try:
+            mesh_list, seg_set = self.neuron_getter.retrieve_neuron(nid, with_child=with_child)
+        except Exception as e:
+            logging.info(e)
+            logging.info(f'Failed to retrieve mesh: {nid}')
+            return ""
         combined_trimesh = trimesh.util.concatenate(mesh_list)
         b_file = self.trimesh_to_binary(combined_trimesh)
         os.makedirs(self.binary_mesh_path, exist_ok=True)
@@ -138,7 +143,7 @@ class MeshCombiner:
                     subparts.extend(self.neuron_getter.get_children(n))
             return subparts
 
-        def helper(n_list, update=True, commit=False):
+        def helper(n_list, update=True, commit=True):
             for n in n_list:
                 self.combine_mesh(n, update=update, commit=commit)
             self.neuron_checker.commit_to_db()
@@ -163,7 +168,7 @@ class MeshCombiner:
                 logging.info("switch to single thread")
                 helper(nid_list)
         else:
-            helper(nid_list)
+            helper(nid_list, commit=False)
     
     def combine_mesh_if_different(self, nid, commit=False):
         
@@ -175,7 +180,6 @@ class MeshCombiner:
                 self.combine_mesh(n, commit=commit)
         
         if isinstance(nid, list):
-            print('nid is list')
             for n in nid: 
                 helper(n, commit=commit)
             self.neuron_checker.commit_to_db()
@@ -187,10 +191,12 @@ class MeshCombiner:
         all_neuron_mongo = self.neuron_checker.all_neuron_mongo()
         all_neuron_nc = self.neuron_checker.get_all_neuron_name()
         new_neurons = set(all_neuron_mongo) - set(all_neuron_nc)
-        logging.info(f'new neurons: {new_neurons}')
         if not include_subpart:
             new_neurons = list(filter(lambda x: not self.is_subpart(x), new_neurons))
-        logging.info(f'new neurons found: {new_neurons}')
+        if len(new_neurons) > 0:
+            logging.info(f'new neurons found: {new_neurons}')
+        else:
+            logging.info('No new neurons found')
         for n in new_neurons:
             sql = '''INSERT INTO neuron (
                 name, tested, subpart, segments)
@@ -201,13 +207,16 @@ class MeshCombiner:
         logging.info('Checking untested neurons')
         subpart = None if include_subpart else False
         untested_neurons = self.neuron_checker.get_untested_neurons(subpart=subpart)
-        logging.info(f'Untested Neurons: {untested_neurons}')
+        if len(untested_neurons) > 0:
+            logging.info(f'Untested neurons found: {untested_neurons}')
+        else:
+            logging.info('No untested neurons found')
         self.combine_mesh_list(
             untested_neurons, 
             process_num=process_num)
 
         logging.info('Checking for difference')
-        all_neuron = self.neuron_checker.get_all_neuron(subpart=subpart)
+        all_neuron = self.neuron_checker.get_all_neuron_name(subpart=subpart)
         process_num = self.default_proess_num if process_num < 0 else process_num
         if process_num > 1:
             try:
@@ -217,7 +226,7 @@ class MeshCombiner:
                 for i, n in enumerate(all_neuron):
                     neuron_lists[i % process_num].append(n)
                 for neurons in neuron_lists:
-                    jobs.append(Process(target=self.combine_mesh_if_different, args=(neurons, )))
+                    jobs.append(Process(target=self.combine_mesh_if_different, args=(neurons, True)))
                 for j in jobs: j.start()
                 for j in jobs: j.join()
             except Exception as e:
@@ -331,12 +340,12 @@ def main():
 
 
 if __name__ == "__main__":
-    mc = MeshCombiner(
-        hierarchy_lut_path= "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment",
-        base_path="/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh/"
-    )
-    test_diff(mc)
-    # test_combine_single_mesh()
-    # test_combine_mesh_list()
-    # test_diff()
-    # test_whole_neuron_check()
+    # mc = MeshCombiner(
+    #     hierarchy_lut_path= "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment",
+    #     base_path="/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh/"
+    # )
+    # test_diff(mc)
+    # test_combine_single_mesh(mc)
+    # test_combine_mesh_list(mc)
+    # test_whole_neuron_check(mc)
+    main()
