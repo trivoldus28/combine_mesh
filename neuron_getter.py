@@ -93,6 +93,11 @@ class NeuronRetriever:
         level_dirs = [str(lv) for lv in reversed(level_dirs)]
         # print(os.path.join(str(num_level), *level_dirs))
         return os.path.join(str(num_level), *level_dirs)
+    
+    def get_children(self, nid):
+        children = self.neuron_db.get_neuron(nid).children
+        children = [] if children is None else children
+        return children
 
     def getNeuronSubsegments(self, nid, segment_name):
         # collects segment numbers for all meshes designated as nid.segmentName_# for any int(#)

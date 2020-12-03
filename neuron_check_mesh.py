@@ -40,7 +40,7 @@ class NeuronChecker:
         self.init_dahlia()
         subpart_name = []
         for neuron_name in nlist:
-            children = nc.dahlia_db.get_neuron(neuron_name).children
+            children = self.dahlia_db.get_neuron(neuron_name).children
             if children is not None and len(children) > 0:
                 for child in children:
                     subpart_name.append(child)
@@ -125,8 +125,8 @@ class NeuronChecker:
         else:
             sql = 'SELECT name FROM neuron WHERE subpart=0'
         self.cursor.execute(sql)
-        row = self.cursor.fetchall()
-        return row
+        result = self.cursor.fetchall()
+        return [row[0] for row in result]
 
     def check_tested(self, nid):
         sql = 'SELECT tested from neuron WHERE name = ?'

@@ -1,6 +1,8 @@
 neuron_check/*.db
 neuron_check/*.db-journal
 binary_mesh/*
+binary_mesh_old/*
+log/*
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
