@@ -144,8 +144,11 @@ class MeshCombiner:
             return subparts
 
         def helper(n_list, update=True, commit=True):
+            p_bar = tqdm(total=len(n_list), desc='Combining Mesh List')
             for n in n_list:
                 self.combine_mesh(n, update=update, commit=commit)
+                p_bar.update(1)
+            p_bar.close()
             self.neuron_checker.commit_to_db()
 
         process_num = self.default_proess_num if process_num < 0 else process_num
@@ -173,15 +176,22 @@ class MeshCombiner:
     def combine_mesh_if_different(self, nid, commit=False):
         
         def helper(n, commit=False):
-            mesh_list, seg_set_mongo = self.neuron_getter.retrieve_neuron(n, with_child=True)
+            try:
+                mesh_list, seg_set_mongo = self.neuron_getter.retrieve_neuron(n, with_child=True)
+            except Exception as e:
+                logging.info(f'retrieve {n} failed, skipping ...')
+                return 
             seg_set_nc = set(json.loads(self.neuron_checker.get_neuron(n)[1]))
             if seg_set_nc != seg_set_mongo:
                 logging.info(f'Difference detected, updating {n} ...')
                 self.combine_mesh(n, commit=commit)
         
         if isinstance(nid, list):
+            p_bar = tqdm(total=len(nid), desc='Checking Difference')
             for n in nid: 
                 helper(n, commit=commit)
+                p_bar.update(1)
+            p_bar.close()
             self.neuron_checker.commit_to_db()
         else:
             helper(n, commit=commit)

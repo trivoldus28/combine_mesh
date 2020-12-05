@@ -18,7 +18,7 @@
   
     "mode_config":{
       "mode": "autocheck",
-      "process_num": 1,
+      "process_num": 4,
       "neuron_list": ["grc_100", "interneuron_100"],
       "include_subpart": true
     }
