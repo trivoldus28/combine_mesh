@@ -90,10 +90,12 @@ class MeshCombiner:
         self.binary_mesh_path = binary_mesh_path
         self.default_proess_num = default_process_num
 
+    # check the name of a neuron to determin whether it is a subpart
     def is_subpart(self, nid):
         result = bool(re.search('axon|dendrite|soma', nid))
         return result
 
+    # convert trimesh to binary file.
     def trimesh_to_binary(self, trimesh_obj):
         triangles = np.array(trimesh_obj.faces).flatten()
         vertices = np.array(trimesh_obj.vertices)
@@ -114,6 +116,7 @@ class MeshCombiner:
                             *triangles)
         return b_array
 
+    # combine a neuron given neuron id.
     def combine_mesh(self, nid, update=True, commit=False):
         logging.info(f'Combining {nid}...')
         with_child = self.is_subpart(nid)
@@ -133,9 +136,11 @@ class MeshCombiner:
             self.neuron_checker.update_neuron(nid=nid, tested=True, segments=segment, commit=commit)
         return seg_set
 
-        
+    # combine mesh from a list of neuron ids
     def combine_mesh_list(self, nid_list, process_num=-1, fetch_subpart=False):
 
+        # get sub part of a neuron list
+        # [interneuron_1, grc_30] -> [interneuroon_1.axon_0, grc_30.axon_0 ....]
         def get_subpart(n_list):
             subparts = []
             for n in n_list:
@@ -143,6 +148,7 @@ class MeshCombiner:
                     subparts.extend(self.neuron_getter.get_children(n))
             return subparts
 
+        # helper to combine list of nids
         def helper(n_list, update=True, commit=True):
             p_bar = tqdm(total=len(n_list), desc='Combining Mesh List')
             for n in n_list:
@@ -151,6 +157,8 @@ class MeshCombiner:
             p_bar.close()
             self.neuron_checker.commit_to_db()
 
+        # process num: for multiprocessing
+        # -1: default process num, 0 or 1: single process, 1+: multi process
         process_num = self.default_proess_num if process_num < 0 else process_num
         if fetch_subpart:
             nid_list.extend(get_subpart(nid_list))
@@ -173,8 +181,10 @@ class MeshCombiner:
         else:
             helper(nid_list, commit=False)
     
+    # check whether the old mesh is changed. If changed, recombine
     def combine_mesh_if_different(self, nid, commit=False):
         
+        # helper function to combine given neuron id
         def helper(n, commit=False):
             try:
                 mesh_list, seg_set_mongo = self.neuron_getter.retrieve_neuron(n, with_child=True)
