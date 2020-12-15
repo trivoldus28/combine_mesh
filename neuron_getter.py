@@ -30,44 +30,25 @@ class NeuronRetriever:
     def __init__(
             self,
             pymongoPath='/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/',
-            basePath='/n/f810/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed_v2/mesh/',
+            basePath='/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh/',
             db_name='neurondb_cb2_v4',
             db_host='mongodb://10.117.28.250:27018/',
             meshHierarchical_size=10000,
-            daisy_block_id_add_one_fix=True,
-            hierarchy_lut_path='/n/f810/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment',
-            super_lut_pre='super_1x2x2_hist_quant_50'
+            daisy_block_id_add_one_fix=True
     ):
 
         if daisy_block_id_add_one_fix:
             daisy.block.Block.BLOCK_ID_ADD_ONE_FIX = True
-
         self.pymongoPath = pymongoPath
         self.basePath = basePath
         assert (os.path.exists(self.basePath))
         self.db_name = db_name
         self.db_host = db_host
         self.meshHierarchical_size = meshHierarchical_size
-        self.hierarchy_lut_path = hierarchy_lut_path
-        self.super_lut_pre = super_lut_pre
-
         self.neuron_db = self.get_neuron_db()
-        self.connect_db = self.get_connect_db()
 
     def close_connection(self):
         self.neuron_db.close()
-
-    def get_connect_db(self):
-        connect_server = ConnectedSegmentServer(
-            hierarchy_lut_path=self.hierarchy_lut_path,
-            super_lut_pre=self.super_lut_pre,
-            voxel_size=(40, 8, 8),
-            find_segment_block_size=(4000, 4096, 4096),
-            super_block_size=(4000, 8192, 8192),
-            fragments_block_size=(400, 2048, 2048),
-            super_offset_hack=(2800, 0, 0),
-            base_threshold=0.5)
-        return connect_server
 
     def get_neuron_db(self):
         try:
@@ -170,8 +151,21 @@ class NeuronRetriever:
         all_segments = self.getNeuronSegId(nid, with_child=with_child)
         return self.getMeshes(all_segments, raw=raw), all_segments
 
+    def get_all_neuron_name(self):
+        result = self.neuron_db.find_neuron({})
+        return list(set(result))
+
+############################################################
+
+def test_get_all_neuron_name():
+    nr = NeuronRetriever()
+    all_n = nr.get_all_neuron_name()
+
+
 
 if __name__ == "__main__":
     nr = NeuronRetriever()
-    mesh, seg = nr.retrieve_neuron('grc_100')
-    print(seg)
+    # mesh, seg = nr.retrieve_neuron('grc_100')
+    all_n = nr.get_all_neuron_name()
+    print(len(all_n))
+    # print(seg)

@@ -3,8 +3,11 @@
 usage:
 
 ``` sh
-activatesk # or activatedaisy
-python combine_mesh.py config.json
+activatedaisy 
+# Add following lines to .bashrc if failed:
+# alias activatedaisy='source /n/groups/htem/users/tmn7/envs/ubuntu180402/bin/activate'
+# export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/graph_tool_hack
+python combine_mesh.py [path to config]
 ```
 ###
 
@@ -51,11 +54,8 @@ Again, don't go to very big process num.
       "db_host": "mongodb://10.117.28.250:27018/",
       "mesh_hierarchical_size": 10000,
       "daisy_block_id_add_one_fix": true,
-      "hierarchy_lut_path": "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment",
-      "super_lut_pre": "super_1x2x2_hist_quant_50",
+      
       "neuron_checker_dir": "/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db",
-      "dahlia_db_name": "neurondb_cb2_v4",
-      "dahlia_db_host": "mongodb://10.117.28.250:27018/",
       "default_process_num": 4
     },
   
@@ -75,4 +75,15 @@ For `neuron_list` mode, change mode_config to something like:
     "process_num": 2,
     "include_subpart": true
 }
+```
+
+### First time user: Init sqlite neuron_mesh.db
+
+If you are not using exisiting neuron_mesh.db in `/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db`, please init your own db:
+
+```shell
+activatedaisy
+python init_neuron_checker.py [path to sqlite db with name] [neuron_db_name] [neuron_db_host]
+# For example:
+# python init_neuron_checker.py /n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh_test.db neurondb_cb2_v4 mongodb://10.117.28.250:27018/
 ```

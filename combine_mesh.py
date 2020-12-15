@@ -1,7 +1,6 @@
 from neuron_getter import NeuronRetriever
 import trimesh
 from neuron_check_mesh import NeuronChecker
-import pandas as pd
 from tqdm import tqdm
 import struct
 import sys
@@ -31,11 +30,7 @@ Possible fields in database_config:
     -- db_host
     -- mesh_hierarchical_size
     -- daisy_block_id_add_one_fix
-    -- hierarchy_lut_path
-    -- super_lut_pre
     -- neuron_checker_dir
-    -- dahlia_db_name
-    -- dahlia_db_host
     -- default_process_num
 
 Fields in mode_config:
@@ -63,11 +58,7 @@ class MeshCombiner:
             db_host='mongodb://10.117.28.250:27018/',
             mesh_hierarchical_size=10000,
             daisy_block_id_add_one_fix=True,
-            hierarchy_lut_path='/n/f810/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment',
-            super_lut_pre='super_1x2x2_hist_quant_50',
             neuron_checker_dir='/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db',
-            dahlia_db_name='neurondb_cb2_v4',
-            dahlia_db_host='mongodb://10.117.28.250:27018/',
             binary_mesh_path='/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh',
             default_process_num=4):
 
@@ -77,21 +68,17 @@ class MeshCombiner:
             db_name=db_name,
             db_host=db_host,
             meshHierarchical_size=mesh_hierarchical_size,
-            daisy_block_id_add_one_fix=daisy_block_id_add_one_fix,
-            hierarchy_lut_path=hierarchy_lut_path,
-            super_lut_pre=super_lut_pre
+            daisy_block_id_add_one_fix=daisy_block_id_add_one_fix
         )
         self.neuron_checker = NeuronChecker(
-            db_dir=neuron_checker_dir,
-            dahlia_db_name=dahlia_db_name,
-            dahlia_db_host=dahlia_db_host
+            db_dir=neuron_checker_dir
         )
         self.binary_mesh_path = binary_mesh_path
         self.default_proess_num = default_process_num
 
     # check the name of a neuron to determin whether it is a subpart
     def is_subpart(self, nid):
-        result = bool(re.search('axon|dendrite|soma', nid))
+        result = bool(re.search('axon|dendrite|soma|unknown_segment', nid))
         return result
 
     # convert trimesh to binary file.
@@ -105,14 +92,14 @@ class MeshCombiner:
         struct.pack_into('<I', b_array, 0, num_vertices)
         # print('Writing vertices ...')
         struct.pack_into('<' + 'f' * len(vertices.flatten()),
-                            b_array,
-                            4,
-                            *vertices.flatten())
+                         b_array,
+                         4,
+                         *vertices.flatten())
         # print('Writing faces ...')
         struct.pack_into('<' + 'I' * len(triangles),
-                            b_array,
-                            4 + 4 * 3 * num_vertices,
-                            *triangles)
+                         b_array,
+                         4 + 4 * 3 * num_vertices,
+                         *triangles)
         return b_array
 
     # combine a neuron given neuron id.
@@ -120,7 +107,8 @@ class MeshCombiner:
         logging.info(f'Combining {nid}...')
         with_child = self.is_subpart(nid)
         try:
-            mesh_list, seg_set = self.neuron_getter.retrieve_neuron(nid, with_child=with_child)
+            mesh_list, seg_set = self.neuron_getter.retrieve_neuron(
+                nid, with_child=with_child)
         except Exception as e:
             logging.info(e)
             logging.info(f'Failed to retrieve mesh: {nid}')
@@ -132,7 +120,8 @@ class MeshCombiner:
             f.write(b_file)
         if update:
             segment = json.dumps(list(seg_set))
-            self.neuron_checker.update_neuron(nid=nid, tested=True, segments=segment, commit=commit)
+            self.neuron_checker.update_neuron(
+                nid=nid, tested=True, segments=segment, commit=commit)
         return seg_set
 
     # combine mesh from a list of neuron ids
@@ -171,47 +160,55 @@ class MeshCombiner:
                     neuron_lists[i % process_num].append(n)
                 for neurons in neuron_lists:
                     jobs.append(Process(target=helper, args=(neurons, )))
-                for j in jobs: j.start()
-                for j in jobs: j.join()
+                for j in jobs:
+                    j.start()
+                for j in jobs:
+                    j.join()
             except Exception as e:
                 logging.debug(e)
                 logging.info("switch to single thread")
                 helper(nid_list)
         else:
             helper(nid_list, commit=False)
-    
+
     # check whether the old mesh is changed. If changed, recombine
-    def combine_mesh_if_different(self, nid, commit=False):
-        
+    def combine_mesh_if_different(self, nid, commit=True):
+
         # helper function to combine given neuron id
-        def helper(n, commit=False):
+        def combine_if_different(n, commit=True):
             try:
-                mesh_list, seg_set_mongo = self.neuron_getter.retrieve_neuron(n, with_child=True)
+                mesh_list, seg_set_mongo = self.neuron_getter.retrieve_neuron(
+                    n, with_child=True)
             except Exception as e:
                 logging.info(f'retrieve {n} failed, skipping ...')
-                return 
+                return
             seg_set_nc = set(json.loads(self.neuron_checker.get_neuron(n)[1]))
             if seg_set_nc != seg_set_mongo:
                 logging.info(f'Difference detected, updating {n} ...')
                 self.combine_mesh(n, commit=commit)
-        
+
         if isinstance(nid, list):
             p_bar = tqdm(total=len(nid), desc='Checking Difference')
-            for n in nid: 
-                helper(n, commit=commit)
+            for n in nid:
+                combine_if_different(n, commit=commit)
                 p_bar.update(1)
             p_bar.close()
             self.neuron_checker.commit_to_db()
         else:
-            helper(n, commit=commit)
-        
+            combine_if_different(n, commit=commit)
+
+    # 1. check not existing neurons
+    # 2. combine un-combined neurons
+    # 3. check difference, if is different, recombine
     def update_whole_neuron_version(self, include_subpart=True, process_num=-1):
         logging.info('Checking new neurons')
-        all_neuron_mongo = self.neuron_checker.all_neuron_mongo()
+        all_neuron_mongo = self.neuron_getter.get_all_neuron_name()
         all_neuron_nc = self.neuron_checker.get_all_neuron_name()
         new_neurons = set(all_neuron_mongo) - set(all_neuron_nc)
+
         if not include_subpart:
-            new_neurons = list(filter(lambda x: not self.is_subpart(x), new_neurons))
+            new_neurons = list(
+                filter(lambda x: not self.is_subpart(x), new_neurons))
         if len(new_neurons) > 0:
             logging.info(f'new neurons found: {new_neurons}')
         else:
@@ -219,19 +216,20 @@ class MeshCombiner:
         for n in new_neurons:
             sql = '''INSERT INTO neuron (
                 name, tested, subpart, segments)
-                VALUES (?, ?, ?, ?)''' 
-            subpart = 1 if self.is_subpart(n) else 0
-            self.neuron_checker.update_query(sql, (n, 0, subpart, None))
-        
+                VALUES (?, ?, ?, ?)'''
+            is_sp = 1 if self.is_subpart(n) else 0
+            self.neuron_checker.update_query(sql, (n, 0, is_sp, None))
+
         logging.info('Checking untested neurons')
         subpart = None if include_subpart else False
-        untested_neurons = self.neuron_checker.get_untested_neurons(subpart=subpart)
+        untested_neurons = self.neuron_checker.get_untested_neurons(
+            subpart=subpart)
         if len(untested_neurons) > 0:
             logging.info(f'Untested neurons found: {untested_neurons}')
         else:
             logging.info('No untested neurons found')
         self.combine_mesh_list(
-            untested_neurons, 
+            untested_neurons,
             process_num=process_num)
 
         logging.info('Checking for difference')
@@ -245,9 +243,12 @@ class MeshCombiner:
                 for i, n in enumerate(all_neuron):
                     neuron_lists[i % process_num].append(n)
                 for neurons in neuron_lists:
-                    jobs.append(Process(target=self.combine_mesh_if_different, args=(neurons, True)))
-                for j in jobs: j.start()
-                for j in jobs: j.join()
+                    jobs.append(
+                        Process(target=self.combine_mesh_if_different, args=(neurons, True)))
+                for j in jobs:
+                    j.start()
+                for j in jobs:
+                    j.join()
             except Exception as e:
                 logging.debug(e)
                 logging.info("switch to single thread")
@@ -255,7 +256,7 @@ class MeshCombiner:
         else:
             self.combine_mesh_if_different(all_neuron)
         self.neuron_checker.commit_to_db()
-            
+
 
 #############################################################################
 
@@ -268,14 +269,16 @@ def test_combine_single_mesh(mc=None):
 
 
 def test_combine_mesh_list(mc=None, nlist=None):
-    if mc is None: mc = MeshCombiner()
-    if nlist is None: 
-        nlist=['grc_100', 'grc_101', 'grc_102', 'interneuron_100.axon_0']
+    if mc is None:
+        mc = MeshCombiner()
+    if nlist is None:
+        nlist = ['grc_100', 'grc_101', 'grc_102', 'interneuron_100.axon_0']
     mc.combine_mesh_list(nlist, process_num=2)
 
 
 def test_diff(mc=None):
-    if mc is None: mc = MeshCombiner()
+    if mc is None:
+        mc = MeshCombiner()
     nid = ['grc_100', 'grc_101', 'grc_102']
     bad_segments = json.dumps(['123'])
     mc.neuron_checker.update_neuron('grc_100', 1, bad_segments)
@@ -287,7 +290,8 @@ def test_diff(mc=None):
 
 
 def test_whole_neuron_check(mc=None):
-    if mc is None: mc = MeshCombiner()
+    if mc is None:
+        mc = MeshCombiner()
     mc.update_whole_neuron_version(include_subpart=False)
 
 
@@ -325,7 +329,7 @@ def main():
         log_path = os.path.join(output_path, 'log')
     os.makedirs(log_path, exist_ok=True)
 
-    log_name = os.path.join(log_path, str(now))
+    log_name = os.path.join(log_path, str(now)+'.log')
     logging.basicConfig(filename=log_name, filemode='w', level=logging.INFO)
     # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.info(f"Your log file: {log_name}")
@@ -336,16 +340,17 @@ def main():
     except Exception as e:
         logging.debug(e)
         logging.debug(f'Your config: {database_config}')
-        logging.info('Init mesh combiner failed, something wrong with database_config')
+        logging.info(
+            'Init mesh combiner failed, something wrong with database_config')
         exit(1)
-    
+
     try:
         mode = mode_config['mode']
     except Exception as e:
         logging.debug(e)
         logging.info('Fail to find mode')
         exit(1)
-    
+
     process_num = mode_config['process_num'] if 'process_num' in mode_config else -1
     include_subpart = mode_config['include_subpart'] if 'include_subpart' in mode_config else False
 

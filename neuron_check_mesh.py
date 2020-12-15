@@ -1,85 +1,16 @@
 import sqlite3
-import os
-import pickle
-import re
 import json
-from segway.dahlia.db_server import NeuronDBServer
-from segway.dahlia.connected_segment_server import ConnectedSegmentServer
 
 
 class NeuronChecker:
     def __init__(self,
-                 db_dir='/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db',
-                 dahlia_db_name='neurondb_cb2_v4',
-                 dahlia_db_host='mongodb://10.117.28.250:27018/'):
+                 db_dir='/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db'):
         self.conn = sqlite3.connect(db_dir)
         self.cursor = self.conn.cursor()
-        self.dahlia_db_name = dahlia_db_name
-        self.dahlia_db_host = dahlia_db_host
-        self.dahlia_db = None
-
-    def init_dahlia(self):
-        if self.dahlia_db is None:
-            print(self.dahlia_db_name)
-            self.dahlia_db = NeuronDBServer(
-                db_name=self.dahlia_db_name, host=self.dahlia_db_host)
-
-    def close_dahlia(self):
-        if self.dahlia_db is not None:
-            self.dahlia_db.close()
 
     def get_cursor(self):
         return self.cursor
-
-    def get_subpart_mongo(self, nlist):
-        self.init_dahlia()
-        subpart_name = []
-        for neuron_name in nlist:
-            children = self.dahlia_db.get_neuron(neuron_name).children
-            if children is not None and len(children) > 0:
-                for child in children:
-                    subpart_name.append(child)
-        return subpart_name
-
-    def all_neuron_mongo(self):
-        self.init_dahlia()
-        cell_type = ['interneuron', 'pc', 'grc', 'glia', 'stellate', 'basket', 'golgi',
-                     'lugaro', 'ubc', 'globular', 'cc', 'myelin', 'mf', 'pf', 'cf']
-        result = []
-        # get parent
-        for t in cell_type:
-            neurons = self.dahlia_db.find_neuron({"name_prefix": t})
-            result.extend(neurons)
-        # get subparts
-        result.extend(self.get_subpart_mongo(result))
-        return list(set(result))
-
-    def init_db(self, drop=False, cell_type=None):
-        self.init_dahlia()
-        cell_type = ['interneuron', 'pc', 'grc', 'glia', 'stellate', 'basket', 'golgi',
-                     'lugaro', 'ubc', 'globular', 'cc', 'myelin', 'mf', 'pf', 'cf']
-        if drop:
-            self.cursor.execute('DROP TABLE IF EXISTS neuron')
-        sql = '''CREATE TABLE IF NOT EXISTS neuron (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                    name TEXT NOT NULL UNIQUE, 
-                    tested INTEGER,
-                    subpart INTEGER,
-                    lastupdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    segments TEXT)'''
-        self.cursor.execute(sql)
-        self.commit_to_db()
-        for t in cell_type:
-            neurons = self.dahlia_db.find_neuron({"name_prefix": t})
-            print(f'neuron number of {t}: {len(neurons)}')
-            neurons = filter(lambda n: not bool(
-                re.search('axon|soma|dendrite', n)), neurons)
-            neurons = [(n, 0, 0, None) for n in neurons]
-            self.cursor.executemany(
-                'INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', neurons)
-            print("committing {} ...".format(t))
-            self.commit_to_db()
-
+        
     def update_neuron(self, nid, tested, segments, commit=True):
         try:
             sql = f'UPDATE neuron SET tested = ?, segments = ?, lastupdate=CURRENT_TIMESTAMP WHERE name = ?'

@@ -7,11 +7,7 @@
     "db_host": "mongodb://10.117.28.250:27018/",
     "mesh_hierarchical_size": 10000,
     "daisy_block_id_add_one_fix": true,
-    "hierarchy_lut_path": "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/luts/fragment_segment",
-    "super_lut_pre": "super_1x2x2_hist_quant_50",
     "neuron_checker_dir": "/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db",
-    "dahlia_db_name": "neurondb_cb2_v4",
-    "dahlia_db_host": "mongodb://10.117.28.250:27018/",
     "default_process_num": 4
   },
 
