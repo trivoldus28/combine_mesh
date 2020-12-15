@@ -11,7 +11,7 @@ import json
 from multiprocessing import Process, Manager
 import logging
 import datetime
-
+import random
 
 MANUAL = """
 Welcome to combine mesh.
@@ -234,6 +234,7 @@ class MeshCombiner:
 
         logging.info('Checking for difference')
         all_neuron = self.neuron_checker.get_all_neuron_name(subpart=subpart)
+        random.shuffle(all_neuron)
         process_num = self.default_proess_num if process_num < 0 else process_num
         if process_num > 1:
             try:
