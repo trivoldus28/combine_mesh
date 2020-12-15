@@ -21,7 +21,7 @@ Please enter the [config_file_path]
 
 The config file should be a json file containing databse configs and 
 mode configs. The json file should have three objects: "database_config",
-"log_folder" and "mode_config". database_config might just be empty 
+"output_path" and "mode_config". database_config might just be empty 
 since all of the fields have default values.
 
 Possible fields in database_config:
@@ -36,7 +36,6 @@ Possible fields in database_config:
     -- neuron_checker_dir
     -- dahlia_db_name
     -- dahlia_db_host
-    -- binary_mesh_path
     -- default_process_num
 
 Fields in mode_config:
@@ -137,7 +136,7 @@ class MeshCombiner:
         return seg_set
 
     # combine mesh from a list of neuron ids
-    def combine_mesh_list(self, nid_list, process_num=-1, fetch_subpart=False):
+    def combine_mesh_list(self, nid_list, process_num=-1, include_subpart=False):
 
         # get sub part of a neuron list
         # [interneuron_1, grc_30] -> [interneuroon_1.axon_0, grc_30.axon_0 ....]
@@ -160,7 +159,7 @@ class MeshCombiner:
         # process num: for multiprocessing
         # -1: default process num, 0 or 1: single process, 1+: multi process
         process_num = self.default_proess_num if process_num < 0 else process_num
-        if fetch_subpart:
+        if include_subpart:
             nid_list.extend(get_subpart(nid_list))
         logging.info(f'Full neuron list for combine: {nid_list}')
         if process_num > 1:
@@ -293,8 +292,6 @@ def test_whole_neuron_check(mc=None):
 
 
 def main():
-    log_folder = '/n/groups/htem/Segmentation/xg76/combine_mesh/log'
-
     modes = {
         'autocheck': {'autocheck', 'ac', 'check'},
         'neuron_list': {'neuron_list', 'nl', 'list'}
@@ -309,19 +306,29 @@ def main():
     try:
         with open(file_path, 'r') as f:
             config_file = json.load(f)
-        log_folder = config_file['log_folder']
+        output_path = config_file['output_path']
         database_config = config_file['database_config']
         mode_config = config_file['mode_config']
+        database_config['binary_mesh_path'] = output_path
     except Exception as e:
         print(e)
-        print("Wrong with config file")
+        print("Wrong with config file, Display manual:")
         print(MANUAL)
         exit(1)
 
     now = datetime.datetime.now().strftime('%m%d.%H.%M.%S')
-    log_name = os.path.join(log_folder, now)
-    logging.basicConfig(filename=log_name, level=logging.INFO)
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
+    # create log path
+    if 'log_path' in config_file:
+        log_path = config_file['log_path']
+    else:
+        log_path = os.path.join(output_path, 'log')
+    os.makedirs(log_path, exist_ok=True)
+
+    log_name = os.path.join(log_path, str(now))
+    logging.basicConfig(filename=log_name, filemode='w', level=logging.INFO)
+    # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    logging.info(f"Your log file: {log_name}")
     logging.info(f"Your config file: {config_file}")
 
     try:
@@ -353,7 +360,7 @@ def main():
         mc.combine_mesh_list(
             nlist,
             process_num=process_num,
-            subpart=include_subpart)
+            include_subpart=include_subpart)
     else:
         logging.info(f'Cannot understand mode: {mode}')
         exit(1)

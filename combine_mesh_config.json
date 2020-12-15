@@ -1,5 +1,5 @@
 { 
-  "log_folder": "/n/groups/htem/Segmentation/xg76/combine_mesh/log",
+  "ouput_path": "/n/groups/htem/Segmentation/xg76/combine_mesh/log",
   "database_config": {
     "pymongo_path": "/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/",
     "base_path": "/n/f810/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed_v2/mesh/",

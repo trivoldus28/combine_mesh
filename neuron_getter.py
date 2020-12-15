@@ -6,13 +6,9 @@ import struct
 import numpy as np
 import sys
 
-try:
-    from dahlia.db_server import NeuronDBServer
-    from dahlia.connected_segment_server import ConnectedSegmentServer
-except ModuleNotFoundError as e:
-    print("try importing segway.dahalia")
-    from segway.dahlia.db_server import NeuronDBServer
-    from segway.dahlia.connected_segment_server import ConnectedSegmentServer
+from segway.dahlia.db_server import NeuronDBServer
+from segway.dahlia.connected_segment_server import ConnectedSegmentServer
+
 
 try:
     import matplotlib.pyplot as plt
@@ -57,7 +53,6 @@ class NeuronRetriever:
 
         self.neuron_db = self.get_neuron_db()
         self.connect_db = self.get_connect_db()
-        
 
     def close_connection(self):
         self.neuron_db.close()
@@ -93,7 +88,7 @@ class NeuronRetriever:
         level_dirs = [str(lv) for lv in reversed(level_dirs)]
         # print(os.path.join(str(num_level), *level_dirs))
         return os.path.join(str(num_level), *level_dirs)
-    
+
     def get_children(self, nid):
         children = self.neuron_db.get_neuron(nid).children
         children = [] if children is None else children
@@ -131,11 +126,13 @@ class NeuronRetriever:
                 # print(f'get mesh num_vertices: {num_vertices}')
                 vertices = np.empty((num_vertices, 3))
                 for i in range(num_vertices):
-                    vertices[i,] = struct.unpack('<fff', memoryview(f.read(12)))
+                    vertices[i, ] = struct.unpack(
+                        '<fff', memoryview(f.read(12)))
                 num_triangles = int((totalSize - (num_vertices * 12 + 4)) / 12)
                 triangles = np.empty((num_triangles, 3))
                 for i in range(num_triangles):
-                    triangles[i,] = struct.unpack('<III', memoryview(f.read(12)))
+                    triangles[i, ] = struct.unpack(
+                        '<III', memoryview(f.read(12)))
             if raw:
                 return (vertices, triangles)
             else:
@@ -150,7 +147,8 @@ class NeuronRetriever:
             dendrite_segments = self.getNeuronSubsegments(nid, 'dendrite')
             soma_segments = self.getNeuronSubsegments(nid, 'soma')
             axon_segments = self.getNeuronSubsegments(nid, 'axon')
-            all_segments = set(segmentNums + dendrite_segments + soma_segments + axon_segments)
+            all_segments = set(
+                segmentNums + dendrite_segments + soma_segments + axon_segments)
         else:
             all_segments = set(segmentNums)
         return all_segments

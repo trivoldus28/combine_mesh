@@ -3,14 +3,8 @@ import os
 import pickle
 import re
 import json
-
-try:
-    from dahlia.db_server import NeuronDBServer
-    from dahlia.connected_segment_server import ConnectedSegmentServer
-except ModuleNotFoundError as e:
-    print("try importing segway.dahalia")
-    from segway.dahlia.db_server import NeuronDBServer
-    from segway.dahlia.connected_segment_server import ConnectedSegmentServer
+from segway.dahlia.db_server import NeuronDBServer
+from segway.dahlia.connected_segment_server import ConnectedSegmentServer
 
 
 class NeuronChecker:
@@ -27,7 +21,8 @@ class NeuronChecker:
     def init_dahlia(self):
         if self.dahlia_db is None:
             print(self.dahlia_db_name)
-            self.dahlia_db = NeuronDBServer(db_name=self.dahlia_db_name, host=self.dahlia_db_host)
+            self.dahlia_db = NeuronDBServer(
+                db_name=self.dahlia_db_name, host=self.dahlia_db_host)
 
     def close_dahlia(self):
         if self.dahlia_db is not None:
@@ -35,7 +30,7 @@ class NeuronChecker:
 
     def get_cursor(self):
         return self.cursor
-    
+
     def get_subpart_mongo(self, nlist):
         self.init_dahlia()
         subpart_name = []
@@ -77,9 +72,11 @@ class NeuronChecker:
         for t in cell_type:
             neurons = self.dahlia_db.find_neuron({"name_prefix": t})
             print(f'neuron number of {t}: {len(neurons)}')
-            neurons = filter(lambda n: not bool(re.search('axon|soma|dendrite', n)), neurons)
+            neurons = filter(lambda n: not bool(
+                re.search('axon|soma|dendrite', n)), neurons)
             neurons = [(n, 0, 0, None) for n in neurons]
-            self.cursor.executemany('INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', neurons)
+            self.cursor.executemany(
+                'INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', neurons)
             print("committing {} ...".format(t))
             self.commit_to_db()
 
@@ -115,7 +112,7 @@ class NeuronChecker:
         self.cursor.execute(sql)
         row = self.cursor.fetchall()
         return row
-    
+
     def get_all_neuron_name(self, subpart=None):
         if subpart is None:
             sql = 'SELECT name FROM neuron'
@@ -176,6 +173,7 @@ class NeuronChecker:
         if commit:
             self.commit_to_db()
 
+
 def populate_subpart(nc=None):
     if nc == None:
         nc = NeuronChecker()
@@ -185,7 +183,8 @@ def populate_subpart(nc=None):
     subpart_name = nc.get_subpart_mongo(all_neuron_name)
     subpart_neuron = [(n, 0, 1, None) for n in subpart_name]
     print(f'populating subparts, total #: {len(subpart_neuron)}')
-    nc.cursor.executemany('INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', subpart_neuron)
+    nc.cursor.executemany(
+        'INSERT INTO neuron (name, tested, subpart, segments) VALUES (?, ?, ?, ?)', subpart_neuron)
     print('committing ...')
     nc.commit_to_db()
 
