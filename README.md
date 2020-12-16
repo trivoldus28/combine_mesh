@@ -48,7 +48,7 @@ Again, don't go to very big process num.
 { 
     "ouput_path": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test",
     "log_path": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test/log",
-    "db_dir": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test/db/neuron_checker.db",
+    "db_dir": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test/db/neuron_mesh.db",
     "database_config": {
       "pymongo_path": "/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/",
       "base_path": "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh/",
