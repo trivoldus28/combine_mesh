@@ -55,8 +55,7 @@ Again, don't go to very big process num.
       "db_name": "neurondb_cb2_v4",
       "db_host": "mongodb://10.117.28.250:27018/",
       "mesh_hierarchical_size": 10000,
-      "daisy_block_id_add_one_fix": true,
-      "default_process_num": 4
+      "daisy_block_id_add_one_fix": true
     },
   
     "mode_config":{
@@ -74,9 +73,12 @@ For `neuron_list` mode, change mode_config to something like:
     "mode": "neuron_list",
     "neuron_list": ["grc_100", "interneuron_100"],
     "process_num": 2,
-    "include_subpart": true
+    "include_subpart": true,
+    "overwrite": false
 }
 ```
+If overwrite is true, it will combine the mesh without checking with neuron_checker (but will update the db).
+If overwrite is false, it only mesh when segments are different.
 
 ### First time user: Init sqlite neuron_mesh.db
 
