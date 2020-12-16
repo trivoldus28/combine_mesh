@@ -1,0 +1,18 @@
+{ 
+    "output_path": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test",
+    "database_config": {
+      "pymongo_path": "/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/",
+      "base_path": "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh",
+      "db_name": "neurondb_cb2_v4",
+      "db_host": "mongodb://10.117.28.250:27018/",
+      "mesh_hierarchical_size": 10000,
+      "daisy_block_id_add_one_fix": true,
+      "default_process_num": 4
+    },
+    "mode_config":{
+      "mode": "neuron_list",
+      "process_num": 3,
+      "neuron_list": ["grc_100", "grc_102", "grc_101", "grc_103"],
+      "include_subpart": false
+    }
+  }

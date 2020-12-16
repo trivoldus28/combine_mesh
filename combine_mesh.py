@@ -1,6 +1,7 @@
 from neuron_getter import NeuronRetriever
-import trimesh
+from init_neuron_checker import init_neuron_checker
 from neuron_check_mesh import NeuronChecker
+import trimesh
 from tqdm import tqdm
 import struct
 import sys
@@ -12,6 +13,7 @@ from multiprocessing import Process, Manager
 import logging
 import datetime
 import random
+
 
 MANUAL = """
 Welcome to combine mesh.
@@ -112,7 +114,7 @@ class MeshCombiner:
         except Exception as e:
             logging.info(e)
             logging.info(f'Failed to retrieve mesh: {nid}')
-            return ""
+            return "[]"
         combined_trimesh = trimesh.util.concatenate(mesh_list)
         b_file = self.trimesh_to_binary(combined_trimesh)
         os.makedirs(self.binary_mesh_path, exist_ok=True)
@@ -337,6 +339,19 @@ def main():
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.info(f"Your log file: {log_name}")
     logging.info(f"Your config file: {config_file}")
+
+    # test if db exists
+    if 'db_dir' in config_file:
+        neuron_checker_dir = config_file['db_dir']
+    else:
+        neuron_checker_dir = os.path.join(output_path, 'db', 'neuron_mesh.db')
+    if not os.path.exists(neuron_checker_dir):
+        os.makedirs(os.path.dirname(neuron_checker_dir), exist_ok=True)
+        init_neuron_checker(
+            db_dir=neuron_checker_dir,
+            db_name=database_config['db_name'],
+            host=database_config['db_host'])
+    database_config['neuron_checker_dir'] = neuron_checker_dir
 
     try:
         mc = MeshCombiner(**database_config)

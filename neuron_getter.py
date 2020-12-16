@@ -98,7 +98,7 @@ class NeuronRetriever:
         Returns `None` if segment does not exist
         '''
         base = self.basePath
-        workfile = base + self.getHierarchicalMeshPath(int(segmentNum))
+        workfile = os.path.join(base,self.getHierarchicalMeshPath(int(segmentNum)))
 
         try:
             totalSize = os.stat(workfile).st_size
