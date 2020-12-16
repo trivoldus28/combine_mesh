@@ -14,7 +14,7 @@
   "mode_config":{
     "mode": "list",
     "process_num": 1,
-    "neuron_list": ["grc_100", "interneuron_100"],
-    "include_subpart": true
+    "neuron_list": ["grc_100", "grc_102"],
+    "include_subpart": false
   }
 }

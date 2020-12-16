@@ -13,7 +13,7 @@
 
   "mode_config":{
     "mode": "autocheck",
-    "process_num": 3,
+    "process_num": 5,
     "include_subpart": true
   }
 }

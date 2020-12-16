@@ -331,8 +331,10 @@ def main():
     os.makedirs(log_path, exist_ok=True)
 
     log_name = os.path.join(log_path, str(now)+'.log')
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
     logging.basicConfig(filename=log_name, filemode='w', level=logging.INFO)
-    # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.info(f"Your log file: {log_name}")
     logging.info(f"Your config file: {config_file}")
 
