@@ -337,8 +337,8 @@ def main():
         logging.root.removeHandler(handler)
     logging.basicConfig(filename=log_name, filemode='w', level=logging.INFO)
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.info(f"Your log file: {log_name}")
     logging.info(f"Your config file: {config_file}")
+    logging.info(f"Your log file: {log_name}")
 
     # test if db exists
     if 'db_dir' in config_file:
@@ -352,6 +352,7 @@ def main():
             db_name=database_config['db_name'],
             host=database_config['db_host'])
     database_config['neuron_checker_dir'] = neuron_checker_dir
+    logging.info(f"Your neuron_checker file: {neuron_checker_dir}")
 
     try:
         mc = MeshCombiner(**database_config)

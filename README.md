@@ -47,6 +47,8 @@ Again, don't go to very big process num.
 ```json
 { 
     "ouput_path": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test",
+    "log_path": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test/log",
+    "db_dir": "/n/groups/htem/Segmentation/xg76/combine_mesh/binary_mesh_test/db/neuron_checker.db",
     "database_config": {
       "pymongo_path": "/n/groups/htem/Segmentation/tmn7/segwaytool.proofreading/segwaytool/proofreading/",
       "base_path": "/n/balin_tank_ssd1/htem/Segmentation/cb2_v4/output.zarr/meshes/precomputed/mesh/",
@@ -54,8 +56,6 @@ Again, don't go to very big process num.
       "db_host": "mongodb://10.117.28.250:27018/",
       "mesh_hierarchical_size": 10000,
       "daisy_block_id_add_one_fix": true,
-      
-      "neuron_checker_dir": "/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db",
       "default_process_num": 4
     },
   
@@ -66,6 +66,7 @@ Again, don't go to very big process num.
     }
   }
 ```
+The `log_path` and `db_dir` are optional. If they are not specified, they are going to be `{output_path}/log`, `{output_path}/db/neuron_mesh.db` respectively.
 
 For `neuron_list` mode, change mode_config to something like:
 ```json
@@ -79,8 +80,10 @@ For `neuron_list` mode, change mode_config to something like:
 
 ### First time user: Init sqlite neuron_mesh.db
 
-If you are not using exisiting neuron_mesh.db in `/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db`, please init your own db:
+** You are not required to init your own db in this version**
+You can enter your desired db path in config file under "db_dir". Or just skip this step and the script will init the db under '{output_path}/db'
 
+If you are not using exisiting neuron_mesh.db in `/n/groups/htem/Segmentation/xg76/combine_mesh/neuron_check/neuron_mesh.db`, you can init your own db:
 ```shell
 activatedaisy
 python init_neuron_checker.py [path to sqlite db with name] [neuron_db_name] [neuron_db_host]
