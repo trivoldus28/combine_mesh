@@ -11,7 +11,7 @@
 
   "mode_config":{
     "mode": "list",
-    "process_num": 1,
+    "process_num": 5,
     "neuron_list": [],
     "include_subpart": false,
     "overwrite": false

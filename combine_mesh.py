@@ -155,7 +155,9 @@ class MeshCombiner:
                 for i, n in enumerate(nid_list):
                     neuron_lists[i % process_num].append(n)
                 for neurons in neuron_lists:
-                    jobs.append(Process(target=helper, args=(neurons, )))
+                    p = Process(target=helper, args=(neurons, ))
+                    p.daemon = True
+                    jobs.append(p)
                 for j in jobs:
                     j.start()
                 for j in jobs:
@@ -170,8 +172,7 @@ class MeshCombiner:
     # check whether the old mesh is changed. If changed, recombine
     def combine_mesh_if_different(self, nid, commit=True):
         try:
-            mesh_list, seg_set_mongo = self.neuron_getter.retrieve_neuron(
-                nid, with_child=True)
+            seg_set_mongo = self.neuron_getter.getNeuronSegId(nid, with_child=True)
         except Exception as e:
             logging.info(f'retrieve {nid} failed, skipping ...')
             return
@@ -202,7 +203,9 @@ class MeshCombiner:
                 for i, n in enumerate(nid_list):
                     neuron_lists[i % process_num].append(n)
                 for neurons in neuron_lists:
-                    jobs.append(Process(target=helper, args=(neurons, )))
+                    p = Process(target=helper, args=(neurons, ))
+                    p.daemon = True
+                    jobs.append(p)
                 for j in jobs:
                     j.start()
                 for j in jobs:
@@ -363,11 +366,12 @@ def main():
     logging.info(f"Your log file: {log_name}")
 
     # test if db exists
-    if 'db_dir' in config_file:
-        neuron_checker_dir = config_file['db_dir']
-    else:
-        neuron_checker_dir = os.path.join(output_path, 'db', 'neuron_mesh.db')
+    neuron_checker_dir = config_file.get(
+        'db_dir',
+        os.path.join(output_path, 'db', 'neuron_mesh.db')
+    )
     if not os.path.exists(neuron_checker_dir):
+        logging.info('Not find your db_dir, creating it.')
         os.makedirs(os.path.dirname(neuron_checker_dir), exist_ok=True)
         init_neuron_checker(
             db_dir=neuron_checker_dir,
