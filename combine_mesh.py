@@ -13,6 +13,7 @@ from multiprocessing import Process, Manager
 import logging
 import datetime
 import random
+import time
 
 
 MANUAL = """
@@ -207,6 +208,8 @@ class MeshCombiner:
                     p.daemon = True
                     jobs.append(p)
                 for j in jobs:
+                    # starting at the same time crashes the sqlite db.
+                    time.sleep(random.randrange(0, 10) * 0.1)
                     j.start()
                 for j in jobs:
                     j.join()
