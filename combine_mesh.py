@@ -120,8 +120,9 @@ class MeshCombiner:
         with open(os.path.join(self.binary_mesh_path, nid), 'wb') as f:
             f.write(b_file)
         if update:
+            seg_hash = self.__hash_segments(seg_set)
             self.neuron_checker.update_neuron(
-                nid=nid, tested=True, segments=seg_set, commit=commit)
+                nid=nid, tested=True, segments=seg_hash, commit=commit)
         return seg_set
 
     # get sub part of a neuron list
@@ -132,6 +133,11 @@ class MeshCombiner:
             if not self.is_subpart(n):
                 subparts.extend(self.neuron_getter.get_children(n))
         return subparts
+    
+    # hash a list or set of segments
+    def __hash_segments(self, seg_set):
+        segs_frozen = frozenset(map(int, seg_set))
+        return str(hash(segs_frozen))
 
     # combine mesh from a list of neuron ids
     def combine_mesh_list(self, nid_list, process_num=1):
@@ -164,7 +170,7 @@ class MeshCombiner:
                 for j in jobs:
                     j.join()
             except Exception as e:
-                logging.debug(e)
+                logging.info(e)
                 logging.info("switch to single thread")
                 helper(nid_list)
         else:
@@ -174,13 +180,13 @@ class MeshCombiner:
     def combine_mesh_if_different(self, nid, commit=True):
         try:
             seg_set_mongo = self.neuron_getter.getNeuronSegId(nid, with_child=True)
+            seg_hash_mongo = self.__hash_segments(seg_set_mongo)
         except Exception as e:
             logging.info(f'retrieve {nid} failed, skipping ...')
             return
         seg_from_nc = self.neuron_checker.get_neuron(nid)[1]
-        seg_from_nc = seg_from_nc if isinstance(seg_from_nc, str) else "[]"
-        seg_set_nc = set(json.loads(seg_from_nc))
-        if seg_set_nc != seg_set_mongo:
+        seg_from_nc = seg_from_nc if isinstance(seg_from_nc, str) else str(hash(frozenset([])))
+        if seg_from_nc != seg_hash_mongo:
             logging.info(f'Difference detected, updating {nid} ...')
             self.combine_mesh(nid, commit=commit)
 
@@ -214,7 +220,7 @@ class MeshCombiner:
                 for j in jobs:
                     j.join()
             except Exception as e:
-                logging.debug(e)
+                logging.info(e)
                 logging.info("switch to single thread")
                 helper(nid_list)
         else:
@@ -386,8 +392,7 @@ def main():
     try:
         mc = MeshCombiner(**database_config)
     except Exception as e:
-        logging.debug(e)
-        logging.debug(f'Your config: {database_config}')
+        logging.info(e)
         logging.info(
             'Init mesh combiner failed, something wrong with database_config')
         exit(1)
@@ -395,7 +400,7 @@ def main():
     try:
         mode = mode_config['mode']
     except Exception as e:
-        logging.debug(e)
+        logging.info(e)
         logging.info('Fail to find mode')
         exit(1)
 
@@ -419,6 +424,8 @@ def main():
     else:
         logging.info(f'Cannot understand mode: {mode}')
         exit(1)
+
+    logging.info('COMBINE JOB(S) FINISHED')
 
 
 if __name__ == "__main__":

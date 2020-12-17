@@ -15,7 +15,8 @@ class NeuronChecker:
         try:
             sql = f'UPDATE neuron SET tested = ?, segments = ?, lastupdate=CURRENT_TIMESTAMP WHERE name = ?'
             tested = 1 if tested else 0
-            segments = json.dumps(list(segments))
+            if not isinstance(segments, str):
+                segments = json.dumps(list(segments))
             self.cursor.execute(sql, (tested, segments, nid))
             if commit:
                 self.conn.commit()
