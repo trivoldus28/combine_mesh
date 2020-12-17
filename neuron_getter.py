@@ -97,10 +97,9 @@ class NeuronRetriever:
         returning a trimesh object.
         Returns `None` if segment does not exist
         '''
-        base = self.basePath
-        workfile = os.path.join(base,self.getHierarchicalMeshPath(int(segmentNum)))
-
         try:
+            base = self.basePath
+            workfile = os.path.join(base,self.getHierarchicalMeshPath(int(segmentNum)))
             totalSize = os.stat(workfile).st_size
             with open(workfile, 'rb') as f:
                 num_vertices = struct.unpack('<I', memoryview(f.read(4)))[-1]

@@ -11,8 +11,8 @@
 
   "mode_config":{
     "mode": "list",
-    "process_num": 4,
-    "neuron_list": ["grc_100", "grc_101", "grc_102", "grc_103", "grc_104", "grc_105", "grc_106"],
+    "process_num": 1,
+    "neuron_list": ["grc_921"],
     "include_subpart": false,
     "overwrite": false
   }
