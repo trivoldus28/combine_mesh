@@ -184,11 +184,14 @@ class MeshCombiner:
         except Exception as e:
             logging.info(f'retrieve {nid} failed, skipping ...')
             return
-        seg_from_nc = self.neuron_checker.get_neuron(nid)[1]
-        seg_from_nc = seg_from_nc if isinstance(seg_from_nc, str) else str(hash(frozenset([])))
-        if seg_from_nc != seg_hash_mongo:
-            logging.info(f'Difference detected, updating {nid} ...')
-            self.combine_mesh(nid, commit=commit)
+        checkdb_neuron = self.neuron_checker.get_neuron(nid)
+        if checkdb_neuron is not None:
+            seg_from_nc = checkdb_neuron[1]
+            seg_from_nc = seg_from_nc if isinstance(seg_from_nc, str) else str(hash(frozenset([])))
+            if seg_from_nc == seg_hash_mongo:
+                return
+        logging.info(f'Difference detected, updating {nid} ...')
+        self.combine_mesh(nid, commit=commit)
 
     def combine_mesh_if_different_list(self, nid_list, commit=True, process_num=1):
         # helper to combine list of nids and check difference
