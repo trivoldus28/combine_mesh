@@ -76,6 +76,7 @@ class MeshCombiner:
             db_dir=neuron_checker_dir
         )
         self.binary_mesh_path = binary_mesh_path
+        os.makedirs(self.binary_mesh_path, exist_ok=True)
 
     # check the name of a neuron to determin whether it is a subpart
     def is_subpart(self, nid):
@@ -103,6 +104,30 @@ class MeshCombiner:
                          *triangles)
         return b_array
 
+    def trimesh_to_blender_obj(self, trimesh_obj, fname):
+        fname += '.obj'
+        faces = trimesh_obj.faces
+        vertices = trimesh_obj.vertices
+        obj = open(fname, mode='w')
+        for item in vertices:
+            obj.write(f"v {item[2]*1000000} {item[1]*1000000} {item[0]*1000000}\n")
+        for item in faces:
+            obj.write(f"f {item[2]+1} {item[1]+1} {item[0]+1}\n")
+        obj.close()
+
+    def trimesh_to_ply(self, trimesh_obj, fname):
+        fname += '.ply'
+        for item in trimesh_obj.vertices:
+            item[0] *= 1000000
+            item[1] *= 1000000
+            item[2] *= 1000000
+            # item[0], item[2] = item[2], item[0]
+            # item[0], item[1] = item[1], item[0]
+            item[2], item[1] = item[1], item[2]
+        binary = trimesh.exchange.ply.export_ply(trimesh_obj)
+        with open(fname, mode='wb') as f:
+            f.write(binary)
+
     # combine a neuron given neuron id.
     def combine_mesh(self, nid, update=True, commit=False):
         logging.info(f'Combining {nid}...')
@@ -114,11 +139,30 @@ class MeshCombiner:
             logging.info(e)
             logging.info(f'Failed to retrieve mesh: {nid}')
             return "[]"
-        combined_trimesh = trimesh.util.concatenate(mesh_list)
-        b_file = self.trimesh_to_binary(combined_trimesh)
-        os.makedirs(self.binary_mesh_path, exist_ok=True)
-        with open(os.path.join(self.binary_mesh_path, nid), 'wb') as f:
-            f.write(b_file)
+        combined_mesh = trimesh.util.concatenate(mesh_list)
+        combined_mesh.merge_vertices()
+        # combined_mesh.process(validate=True)  # don't do process with trimesh
+                                                # it's just unnecessarily slow
+
+        if self.decimate_pct:
+            face_count0 = len(combined_mesh.faces)
+            combined_mesh = combined_mesh.simplify_quadratic_decimation(
+                                                int(face_count0*self.decimate_pct))
+
+        fname = os.path.join(self.binary_mesh_path, nid)
+        if self.write_ext is not None:
+            if self.write_ext == "ply":
+                self.trimesh_to_ply(combined_mesh, fname)
+            elif self.write_ext == "obj":
+                self.trimesh_to_blender_obj(combined_mesh, fname)
+            else:
+                raise RuntimeError(f"Unsupported write_ext {self.write_ext}")
+        else:
+            assert False
+            b_file = self.trimesh_to_binary(combined_mesh)
+            with open(fname, 'wb') as f:
+                f.write(b_file)
+
         if update:
             seg_hash = self.__hash_segments(seg_set)
             self.neuron_checker.update_neuron(
@@ -154,6 +198,7 @@ class MeshCombiner:
         # -1: default process num, 0 or 1: single process, 1+: multi process
         process_num = max(int(process_num), 1)
         logging.info(f'Full neuron list for combine: {nid_list}')
+        nid_list = random.shuffle(nid_list)
         if process_num > 1:
             try:
                 n_list = Manager().list()
@@ -406,6 +451,9 @@ def main():
         logging.info(e)
         logging.info('Fail to find mode')
         exit(1)
+
+    mc.write_ext = mode_config.get('write_ext', None)
+    mc.decimate_pct = mode_config.get('decimate_pct', None)
 
     process_num = mode_config.get('process_num', 1)
     include_subpart = mode_config.get('include_subpart', False)
